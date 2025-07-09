@@ -88,8 +88,7 @@ public class App {
         // Add the definition ids that are missing
 
         for (int definition_id : needed_definition_ids) {
-            insert_custom_action_value_stat.setInt(1, custom_action_values_ids.get(0)); // Assuming we want to add it to the
-                                                                                   // first
+            insert_custom_action_value_stat.setInt(1, custom_action_values_ids.get(0));
             insert_custom_action_value_stat.setBoolean(2, false);
             insert_custom_action_value_stat.setInt(3, definition_id);
             insert_custom_action_value_stat.executeUpdate();
