@@ -11,11 +11,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * Tries to fix the custom action values in the submission_custom_action_values table.
  */
 public class App {
     public static void main(String[] args) throws SQLException {
         if (args.length < 3) {
-            System.out.println("Usage: ");
+            System.out.println("Usage: JDBC_URL USER PASSWORD");
             return;
         }
 
@@ -44,6 +45,7 @@ public class App {
 
         for (Map.Entry<Integer, List<Integer>> entry : custom_action_values_map.entrySet()) {
             if (entry.getValue().size() < 4) {
+                System.out.println("Handling submission " + entry.getKey() + " with " + entry.getValue().size() + " custom action values");
                 add_missing_custom_values(conn, entry.getKey(), entry.getValue());
             }
         }
@@ -59,7 +61,6 @@ public class App {
 
         PreparedStatement query_custom_action_values_stat = conn
                 .prepareStatement("SELECT * FROM custom_action_values where id=?");
-
 
         List<Integer> needed_definition_ids = new ArrayList<>();
         needed_definition_ids.addAll(List.of(7, 8, 9, 10));
