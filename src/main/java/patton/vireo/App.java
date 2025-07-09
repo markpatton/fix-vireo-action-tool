@@ -54,7 +54,7 @@ public class App {
     private static void add_missing_custom_values(Connection conn, int submission_id, List<Integer> custom_action_values_ids)
             throws SQLException {
         PreparedStatement insert_custom_action_value_stat = conn.prepareStatement(
-                "INSERT INTO custom_action_values (id, value, definition_id) VALUES (?, ?, ?)");
+                "INSERT INTO custom_action_values (value, definition_id) VALUES (?, ?)");
 
         PreparedStatement insert_submission_custom_action_values_stat = conn.prepareStatement(
                 "INSERT INTO submission_custom_action_values (submission_id, custom_action_values_id) VALUES (?, ?)");
@@ -88,8 +88,8 @@ public class App {
         // Add the definition ids that are missing
 
         for (int definition_id : needed_definition_ids) {
-            insert_custom_action_value_stat.setBoolean(2, false);
-            insert_custom_action_value_stat.setInt(3, definition_id);
+            insert_custom_action_value_stat.setBoolean(1, false);
+            insert_custom_action_value_stat.setInt(2, definition_id);
             insert_custom_action_value_stat.executeUpdate();
 
             try (ResultSet rs = insert_custom_action_value_stat.getGeneratedKeys()) {
