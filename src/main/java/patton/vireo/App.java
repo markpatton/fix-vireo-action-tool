@@ -37,8 +37,6 @@ public class App {
                     add_missing_custom_values(conn, rs.getInt(1), dry_run);
                 }
             }
-
-            conn.commit();
         }
     }
 
@@ -96,7 +94,7 @@ public class App {
                     throw new RuntimeException("Unexpected definition id: " + definition_id);
                 }
 
-                missing_definition_ids.remove(definition_id);
+                missing_definition_ids.remove((Integer)definition_id);
             }
         }
 
