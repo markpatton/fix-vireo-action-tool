@@ -30,7 +30,7 @@ public class App {
         }
 
         try (Connection conn = DriverManager.getConnection(jdbc_url, user, password)) {
-            PreparedStatement query_submission_stat = conn.prepareStatement("SELECT submitter_id FROM submission");
+            PreparedStatement query_submission_stat = conn.prepareStatement("SELECT id FROM submission");
 
             try (ResultSet rs = query_submission_stat.executeQuery()) {
                 add_missing_custom_values(conn, rs.getInt(1), dry_run);
