@@ -6,17 +6,16 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
- * Tries to fix the custom action values in the submission_custom_action_values table.
+ * Tries to fix the custom action values in the submission_custom_action_values
+ * table.
  */
 public class App {
     public static void main(String[] args) throws SQLException {
-        if (args.length < 3) {
-            System.out.println("Usage: JDBC_URL USER PASSWORD");
+        if (args.length < 3 || args.length > 4) {
+            System.out.println("Usage: JDBC_URL USER PASSWORD ?--dry-run?");
             return;
         }
 
@@ -24,48 +23,62 @@ public class App {
         String user = args[1];
         String password = args[2];
 
-        Connection conn = DriverManager.getConnection(jdbc_url, user, password);
+        boolean dry_run = args.length == 4 && args[3].equals("--dry-run");
 
-        PreparedStatement stat = conn.prepareStatement("SELECT * FROM submission_custom_action_values");
+        if (dry_run) {
+            System.out.print("Checking custom action values, no changes will be made. ");
+        }
 
-        // Submission id -> List of custom action values ids
-        Map<Integer, List<Integer>> custom_action_values_map = new HashMap<>();
+        try (Connection conn = DriverManager.getConnection(jdbc_url, user, password)) {
+            PreparedStatement query_submission_stat = conn.prepareStatement("SELECT submitter_id FROM submission");
 
-        try (ResultSet rs = stat.executeQuery()) {
+            try (ResultSet rs = query_submission_stat.executeQuery()) {
+                add_missing_custom_values(conn, rs.getInt(1), dry_run);
+            }
+
+            conn.commit();
+        }
+    }
+
+    private static void add_missing_custom_values(Connection conn, int submission_id, boolean dry_run)
+            throws SQLException {
+
+        // Find the custom action values for the submission
+        PreparedStatement query_submission_custom_action_values_stat = conn.prepareStatement(
+                "SELECT custom_action_values_id FROM submission_custom_action_values WHERE submission_id=?");
+
+        query_submission_custom_action_values_stat.setInt(1, submission_id);
+
+        List<Integer> custom_action_values_ids = new ArrayList<>();
+
+        try (ResultSet rs = query_submission_custom_action_values_stat.executeQuery()) {
             while (rs.next()) {
-                int submission_id = rs.getInt("submission_id");
-                int custom_action_values_id = rs.getInt("custom_action_values_id");
-
-                List<Integer> values = custom_action_values_map.putIfAbsent(submission_id, new java.util.ArrayList<>());
-                values.add(custom_action_values_id);
+                custom_action_values_ids.add(rs.getInt(1));
             }
         }
 
         // If there are less than 4 custom action values, then add the missing ones
-
-        for (Map.Entry<Integer, List<Integer>> entry : custom_action_values_map.entrySet()) {
-            if (entry.getValue().size() < 4) {
-                System.out.println("Handling submission " + entry.getKey() + " with " + entry.getValue().size() + " custom action values");
-                add_missing_custom_values(conn, entry.getKey(), entry.getValue());
-            }
+        if (custom_action_values_ids.size() < 4) {
+            System.out.println("Handling submission " + submission_id + " with " + custom_action_values_ids + " custom action values");
+            add_missing_custom_values(conn, submission_id, custom_action_values_ids, dry_run);
         }
     }
 
-    private static void add_missing_custom_values(Connection conn, int submission_id, List<Integer> custom_action_values_ids)
-            throws SQLException {
-        PreparedStatement insert_custom_action_value_stat = conn.prepareStatement(
-                "INSERT INTO custom_action_values (value, definition_id) VALUES (?, ?)");
+    private static void add_missing_custom_values(Connection conn, int submission_id,
+            List<Integer> custom_action_values_ids, boolean dry_run) throws SQLException {
+        PreparedStatement insert_custom_action_value_stat = conn
+                .prepareStatement("INSERT INTO custom_action_values (value, definition_id) VALUES (?, ?)");
 
         PreparedStatement insert_submission_custom_action_values_stat = conn.prepareStatement(
                 "INSERT INTO submission_custom_action_values (submission_id, custom_action_values_id) VALUES (?, ?)");
 
         PreparedStatement query_custom_action_values_stat = conn
-                .prepareStatement("SELECT * FROM custom_action_values where id=?");
+                .prepareStatement("SELECT definition_id FROM custom_action_values where id=?");
 
-        List<Integer> needed_definition_ids = new ArrayList<>();
-        needed_definition_ids.addAll(List.of(7, 8, 9, 10));
+        List<Integer> missing_definition_ids = new ArrayList<>();
+        missing_definition_ids.addAll(List.of(7, 8, 9, 10));
 
-        // Figure out what definition ids are needed
+        // Figure out what definition ids are missing
         for (int custom_action_values_id : custom_action_values_ids) {
             query_custom_action_values_stat.setInt(1, custom_action_values_id);
 
@@ -75,22 +88,28 @@ public class App {
                             "Cannot find expected custom action value with id: " + custom_action_values_id);
                 }
 
-                int definition_id = rs.getInt("definition_id");
+                int definition_id = rs.getInt(1);
 
-                if (!needed_definition_ids.contains(definition_id)) {
+                if (!missing_definition_ids.contains(definition_id)) {
                     throw new RuntimeException("Unexpected definition id: " + definition_id);
                 }
 
-                needed_definition_ids.remove(definition_id);
+                missing_definition_ids.remove(definition_id);
             }
         }
 
         // Add the definition ids that are missing
 
-        for (int definition_id : needed_definition_ids) {
+        for (int definition_id : missing_definition_ids) {
             insert_custom_action_value_stat.setBoolean(1, false);
             insert_custom_action_value_stat.setInt(2, definition_id);
-            insert_custom_action_value_stat.executeUpdate();
+
+            if (dry_run) {
+                System.err.println("Would insert custom action value with definition id: " + definition_id
+                        + " for submission id: " + submission_id);
+            } else {
+                insert_custom_action_value_stat.executeUpdate();
+            }
 
             try (ResultSet rs = insert_custom_action_value_stat.getGeneratedKeys()) {
                 if (!rs.next()) {
@@ -104,7 +123,12 @@ public class App {
                 insert_submission_custom_action_values_stat.setInt(1, submission_id);
                 insert_submission_custom_action_values_stat.setInt(2, custom_action_value_id);
 
-                insert_submission_custom_action_values_stat.executeUpdate();
+                if (dry_run) {
+                    System.err.println("Would insert submission_custom_action_values with submission id: "
+                            + submission_id + " and custom action value id: " + custom_action_value_id);
+                } else {
+                    insert_submission_custom_action_values_stat.executeUpdate();
+                }
             }
         }
     }
