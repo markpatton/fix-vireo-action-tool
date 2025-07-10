@@ -105,7 +105,7 @@ public class App {
             insert_custom_action_value_stat.setInt(2, definition_id);
 
             if (dry_run) {
-                System.err.println("Would insert custom action value with definition id: " + definition_id
+                System.out.println("Would insert custom action value with definition id: " + definition_id
                         + " for submission id: " + submission_id);
                 continue;
             }
