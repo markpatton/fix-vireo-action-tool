@@ -5,6 +5,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -67,7 +68,7 @@ public class App {
     private static void add_missing_custom_values(Connection conn, int submission_id,
             List<Integer> custom_action_values_ids, boolean dry_run) throws SQLException {
         PreparedStatement insert_custom_action_value_stat = conn
-                .prepareStatement("INSERT INTO custom_action_value (value, definition_id) VALUES (?, ?)");
+                .prepareStatement("INSERT INTO custom_action_value (value, definition_id) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS);
 
         PreparedStatement insert_submission_custom_action_values_stat = conn.prepareStatement(
                 "INSERT INTO submission_custom_action_values (submission_id, custom_action_values_id) VALUES (?, ?)");
