@@ -86,8 +86,7 @@ public class App {
         PreparedStatement query_custom_action_values_stat = conn
                 .prepareStatement("SELECT definition_id FROM custom_action_value where id=?");
 
-        List<Integer> missing_definition_ids = new ArrayList<>();
-        missing_definition_ids.addAll(custom_action_ids);
+        List<Integer> missing_definition_ids = new ArrayList<>(custom_action_ids);
 
         // Figure out what definition ids are missing
         for (int custom_action_values_id : custom_action_values_ids) {
