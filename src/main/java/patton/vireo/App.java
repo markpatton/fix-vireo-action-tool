@@ -32,7 +32,6 @@ public class App {
 
         try (Connection conn = DriverManager.getConnection(jdbc_url, user, password)) {
             PreparedStatement query_submission_stat = conn.prepareStatement("SELECT id FROM submission");
-
             try (ResultSet rs = query_submission_stat.executeQuery()) {
                 while (rs.next()) {
                     add_missing_custom_values(conn, rs.getInt(1), dry_run);
@@ -58,15 +57,26 @@ public class App {
             }
         }
 
-        // If there are less than 4 custom action values, then add the missing ones
-        if (custom_action_values_ids.size() < 4) {
+        //Find the ids for the custom actions
+        PreparedStatement query_custom_action_ids_stat = conn.prepareStatement( "SELECT id FROM custom_action_definition");
+
+        List<Integer> custom_action_ids = new ArrayList<>();
+
+        try (ResultSet rs = query_custom_action_ids_stat.executeQuery()) {
+            while (rs.next()) {
+                custom_action_ids.add(rs.getInt(1));
+            }
+        }
+
+        // If there are less than the full set of custom action values, then add the missing ones
+        if (custom_action_values_ids.size() < custom_action_ids.size()) {
             System.out.println("Handling submission " + submission_id + " with custom action values " + custom_action_values_ids);
-            add_missing_custom_values(conn, submission_id, custom_action_values_ids, dry_run);
+            add_missing_custom_values(conn, submission_id, custom_action_values_ids, custom_action_ids, dry_run);
         }
     }
 
     private static void add_missing_custom_values(Connection conn, int submission_id,
-            List<Integer> custom_action_values_ids, boolean dry_run) throws SQLException {
+            List<Integer> custom_action_values_ids, List<Integer> custom_action_ids, boolean dry_run) throws SQLException {
         PreparedStatement insert_custom_action_value_stat = conn
                 .prepareStatement("INSERT INTO custom_action_value (value, definition_id) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS);
 
@@ -77,7 +87,7 @@ public class App {
                 .prepareStatement("SELECT definition_id FROM custom_action_value where id=?");
 
         List<Integer> missing_definition_ids = new ArrayList<>();
-        missing_definition_ids.addAll(List.of(7, 8, 9, 10));
+        missing_definition_ids.addAll(custom_action_ids);
 
         // Figure out what definition ids are missing
         for (int custom_action_values_id : custom_action_values_ids) {
