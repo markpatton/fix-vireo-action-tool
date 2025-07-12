@@ -2,7 +2,7 @@ This project addresses an issue we had moving from Vireo 3 to Vireo 4. Our verso
 custom action values on submissions in the database,
 apparently leaving it to the display logic to create
 checkbox controls for unselected custom action values in
-the UI. In Vireo 4 however new submissions are created with values forall
+the UI. In Vireo 4 however new submissions are created with values for all
 custom actions recorded in the database, and the UI
 expects all of them to be present in the database in order to display checkbox controls 
 for them. As a result, submissions which were created in a 
